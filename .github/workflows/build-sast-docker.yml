@@ -1,0 +1,56 @@
+name: Build + SAST + Docker Push
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout code
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # 2. Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      # 3. Install dependencies
+      - name: Install Dependencies
+        run: npm install
+
+      # 4. Run Snyk SAST scan
+      - name: Run Snyk SAST Scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+
+      # 5. Build Docker image
+      - name: Build Docker Image
+        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/finaldec2025:latest .
+
+      # 6. Login to DockerHub
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      # 7. Tag Docker image
+      - name: Tag Docker Image
+        run: docker tag ${{ secrets.DOCKERHUB_USERNAME }}/finaldec2025:latest \
+                     ${{ secrets.DOCKERHUB_USERNAME }}/finaldec2025:v1
+
+      # 8. Push images to DockerHub
+      - name: Push latest
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/finaldec2025:latest
+
+      - name: Push v1 tag
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/finaldec2025:v1
